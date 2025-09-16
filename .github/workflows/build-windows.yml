@@ -21,9 +21,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Setup CMake
-      uses: get-cmake@latest
-    
     - name: Setup Visual Studio Build Tools
       uses: microsoft/setup-msbuild@v2
     
