@@ -1,0 +1,71 @@
+name: Build Windows Executable
+
+# 手动触发工作流
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Debug
+        - Release
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup CMake
+      uses: get-cmake@latest
+    
+    - name: Setup Visual Studio Build Tools
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }} -G "Visual Studio 17 2022" -A x64
+    
+    - name: Build project
+      run: |
+        cd build
+        cmake --build . --config ${{ github.event.inputs.build_type }}
+    
+    - name: List build output
+      run: |
+        Get-ChildItem -Recurse build/bin -Name "*.exe"
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: istyle-windows-${{ github.event.inputs.build_type }}-${{ github.sha }}
+        path: |
+          build/bin/**/*.exe
+        if-no-files-found: error
+        retention-days: 30
+    
+    - name: Create release asset (if Release build)
+      if: github.event.inputs.build_type == 'Release'
+      run: |
+        cd build/bin
+        $exe_file = Get-ChildItem -Name "*.exe" | Select-Object -First 1
+        if ($exe_file) {
+          Compress-Archive -Path $exe_file -DestinationPath "istyle-windows-release.zip"
+          Write-Output "Created release archive: istyle-windows-release.zip"
+        }
+    
+    - name: Upload release archive
+      if: github.event.inputs.build_type == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: istyle-windows-release-archive
+        path: build/bin/istyle-windows-release.zip
+        if-no-files-found: error
+        retention-days: 90
